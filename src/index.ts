@@ -1,5 +1,5 @@
-import invert from './invert';
+import Board from './Board';
+import { rand } from './utilities';
 
-const foo: string = 'wait, dude'; // eslint-disable-line @typescript-eslint/no-inferrable-types
-
-console.log(`${foo}... is that ${invert(false)}?`);
+(window as any).Board = Board;
+(window as any).rand = rand;

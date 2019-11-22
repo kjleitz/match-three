@@ -1,7 +1,7 @@
 {
-  "name": "ts-sandbox-2",
+  "name": "match-three",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/main.js",
   "repository": "https://github.com/kjleitz/ts-sandbox-2",
   "author": "Keegan Leitz <keegan@openbay.com>",
   "license": "MIT",
