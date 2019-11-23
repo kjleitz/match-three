@@ -4,51 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>ts-sandbox-2</title>
-  <script src="main.js"></script>
+  <title>match-three</title>
 </head>
 <body>
-  <script>
-    const board = new Board({ rowCount: 12, colCount: 12 });
-    const boardDiv = document.createElement('div');
-    boardDiv.className = 'tile-board';
-    board.rows.forEach((row) => {
-      const rowDiv = document.createElement('div');
-      rowDiv.className = 'tile-row';
-      rowDiv.style.height = '50px';
-      row.forEach((tile) => {
-        const tileDiv = document.createElement('div');
-        tileDiv.className = 'tile';
-        tileDiv.style.width = '50px';
-        tileDiv.style.height = '50px';
-        tileDiv.style.backgroundColor = tile.type;
-        rowDiv.appendChild(tileDiv);
-      })
-      boardDiv.appendChild(rowDiv);
-    });
-    document.body.appendChild(boardDiv);
-  </script>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overscroll-behavior: none;
-    }
-
-    .tile-board {
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      flex-wrap: nowrap;
-    }
-
-    .tile-row {
-      display: flex;
-      justify-content: flex-start;
-    }
-  </style>
+  <script src="main.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>

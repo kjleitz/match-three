@@ -1,19 +1,22 @@
 import Tile from "./Tile";
 import { range, rand } from "./utilities";
 
-export default class Board {
+export default class Board<TileClass = Tile> {
   public rowCount = 12;
   public colCount = 12;
-  public tileTypes = ['red', 'green', 'blue', 'yellow'];
-  private _rows!: Tile[][];
-  private _columns?: Tile[][];
+  public tileTypes = ['a', 'b', 'c', 'd'];
+  public tileClass = Tile;
+  public tileGenerator: () => TileClass;
+  private _rows!: TileClass[][];
+  private _columns?: TileClass[][];
 
-  constructor(opts: Partial<Board>) {
+  constructor(opts: { tileGenerator: () => TileClass } & Partial<Board>) {
     Object.assign(this, opts);
+    this.tileGenerator = opts.tileGenerator;
     this.rows = this.newRows();
   }
 
-  set rows(rows: Tile[][]) {
+  set rows(rows: TileClass[][]) {
     if (!rows.every(row => rows[0].length === row.length)) {
       throw new Error('Rows must all be the same length');
     }
@@ -23,11 +26,11 @@ export default class Board {
     this.colCount = rows[0].length;
   }
 
-  get rows(): Tile[][] {
+  get rows(): TileClass[][] {
     return this._rows;
   }
 
-  set columns(columns: Tile[][]) {
+  set columns(columns: TileClass[][]) {
     if (!columns.every(column => columns[0].length === column.length)) {
       throw new Error('Columns must all be the same length');
     }
@@ -37,10 +40,10 @@ export default class Board {
         rows[index] = [...(rows[index] || []), tile];
       });
       return rows;
-    }, [] as Tile[][]);
+    }, [] as TileClass[][]);
   }
 
-  get columns(): Tile[][] {
+  get columns(): TileClass[][] {
     if (this._columns) return this._columns;
 
     this._columns = this.rows.reduce((columns, row) => {
@@ -48,17 +51,15 @@ export default class Board {
         columns[index] = [...(columns[index] || []), tile];
       });
       return columns;
-    }, [] as Tile[][]);
+    }, [] as TileClass[][]);
 
     return this._columns;
   }
 
-  private newRows(): Tile[][] {
+  private newRows(): TileClass[][] {
     return range(this.rowCount, () => {
       return range(this.colCount, () => {
-        return new Tile({
-          type: this.tileTypes[Math.floor(rand(0, this.tileTypes.length))],
-        });
+        return this.tileGenerator();
       });
     });
   }
