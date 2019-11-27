@@ -3,27 +3,36 @@ export class Mouse {
   public y = 0;
   public pressed = false;
   public pressedStartPos: { x: number; y: number };
+  public pressCallbacks: ((mouse: Mouse) => void)[] = [];
+  public depressCallbacks: ((mouse: Mouse) => void)[] = [];
+  public moveCallbacks: ((mouse: Mouse) => void)[] = [];
 
   constructor() {
     this.pressedStartPos = { x: this.x, y: this.y };
 
     window.addEventListener('mousedown', (event) => {
       this.populateFromMouseEvent(event);
+      this.pressCallbacks.forEach(callback => callback(this));
     });
     window.addEventListener('mousemove', (event) => {
       this.populateFromMouseEvent(event);
+      this.moveCallbacks.forEach(callback => callback(this));
     });
     window.addEventListener('mouseup', (event) => {
+      this.depressCallbacks.forEach(callback => callback(this)); // we want this one to happen before the reset
       this.populateFromMouseEvent(event);
     });
 
     window.addEventListener('touchstart', (event) => {
       this.populateFromTouchEvent(event);
+      this.pressCallbacks.forEach(callback => callback(this));
     });
     window.addEventListener('touchmove', (event) => {
       this.populateFromTouchEvent(event);
+      this.moveCallbacks.forEach(callback => callback(this));
     });
     window.addEventListener('touchend', (event) => {
+      this.depressCallbacks.forEach(callback => callback(this)); // we want this one to happen before the reset
       this.populateFromTouchEvent(event);
     });
   }
@@ -42,6 +51,18 @@ export class Mouse {
     } else {
       return y < 0 ? 'up' : 'down';
     }
+  }
+
+  onPress(callback: (mouse: Mouse) => void): void {
+    this.pressCallbacks.push(callback);
+  }
+
+  onDepress(callback: (mouse: Mouse) => void): void {
+    this.depressCallbacks.push(callback);
+  }
+
+  onMove(callback: (mouse: Mouse) => void): void {
+    this.moveCallbacks.push(callback);
   }
 
   populateFromMouseEvent(event: MouseEvent): void {

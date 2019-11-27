@@ -1,9 +1,9 @@
 import Tile from "./Tile";
-import { range, rand } from "./utilities";
+import { range } from "./utilities";
 
 export default class Board<TileClass = Tile> {
-  public rowCount = 12;
-  public colCount = 12;
+  public rowCount = 10;
+  public colCount = 10;
   public tileTypes = ['a', 'b', 'c', 'd'];
   public tileClass = Tile;
   public tileGenerator: () => TileClass;
@@ -54,6 +54,10 @@ export default class Board<TileClass = Tile> {
     }, [] as TileClass[][]);
 
     return this._columns;
+  }
+
+  get tiles(): TileClass[] {
+    return this.rows.reduce((tiles, row) => [...tiles, ...row], []);
   }
 
   private newRows(): TileClass[][] {
