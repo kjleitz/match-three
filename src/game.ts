@@ -40,7 +40,7 @@ const applyMatchedStyle = (tile: CanvasTile, { x, y }: CoordPosition): void => {
 
 window.addEventListener('DOMContentLoaded', () => {
   const board = new CanvasBoard({
-    width: Math.min(window.innerWidth, 500),
+    width: Math.min(window.innerWidth, window.innerHeight, 500),
     rowCount: 10,
     colCount: 10,
     matchAnimationMs: MATCH_ANIMATION_MS,

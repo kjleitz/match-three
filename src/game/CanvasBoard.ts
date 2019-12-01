@@ -86,7 +86,7 @@ export default class CanvasBoard extends Board<CanvasTile> {
 
     this.x = opts.x || 0;
     this.y = opts.y || 0;
-    this.width = opts.width || this.colCount * 50;
+    this.width = Math.floor(opts.width || this.colCount * 50);
     this.height = opts.height || this.width;
     this.sensitivity = opts.sensitivity || 25;
     this.shapes = opts.shapes || defaultShapes();
