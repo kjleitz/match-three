@@ -38,24 +38,27 @@ const applyMatchedStyle = (tile: CanvasTile, { x, y }: CoordPosition): void => {
   ctx.fillRect(x + horizontal, y + vertical, width - (horizontal * 2), height - (vertical * 2));
 };
 
-const board = new CanvasBoard({
-  rowCount: 10,
-  colCount: 10,
-  matchAnimationMs: MATCH_ANIMATION_MS,
-  applySelectedStyle,
-  applyTargetedStyle,
-  applyMatchedStyle,
-});
+window.addEventListener('DOMContentLoaded', () => {
+  const board = new CanvasBoard({
+    width: Math.min(window.innerWidth, 500),
+    rowCount: 10,
+    colCount: 10,
+    matchAnimationMs: MATCH_ANIMATION_MS,
+    applySelectedStyle,
+    applyTargetedStyle,
+    applyMatchedStyle,
+  });
 
-board.onDragEnd((event) => {
-  board.swapTile(event.origin, event.destination);
-  const shapes = board.matchShapes();
-  if (!shapes.length) board.swapTile(event.origin, event.destination);
-});
+  board.onDragEnd((event) => {
+    board.swapTile(event.origin, event.destination);
+    const shapes = board.matchShapes();
+    if (!shapes.length) board.swapTile(event.origin, event.destination);
+  });
 
-gameLoop(ctx, (_loopCount) => {
-  board.draw(ctx);
-  board.update();
-});
+  gameLoop(ctx, (_loopCount) => {
+    board.draw(ctx);
+    board.update();
+  });
 
-(window as any).board = board;
+  (window as any).board = board;
+});

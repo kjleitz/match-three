@@ -60,7 +60,7 @@ export default class Board<TileClass = Tile> {
     return this.rows.reduce((tiles, row) => [...tiles, ...row], []);
   }
 
-  private newRows(): TileClass[][] {
+  newRows(): TileClass[][] {
     return range(this.rowCount, () => {
       return range(this.colCount, () => {
         return this.tileGenerator();

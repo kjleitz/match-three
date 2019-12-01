@@ -77,6 +77,7 @@ export class Mouse {
 
   populateFromTouchEvent(event: TouchEvent): void {
     const { touches } = event;
+    const alreadyPressed = this.pressed;
     if (touches.length === 0) {
       this.pressed = false;
     } else {
@@ -84,6 +85,7 @@ export class Mouse {
       this.x = touch.clientX;
       this.y = touch.clientY;
       this.pressed = true;
+      if (!alreadyPressed) this.pressedStartPos = { x: this.x, y: this.y };
     }
   }
 }
