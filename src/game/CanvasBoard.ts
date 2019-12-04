@@ -1,8 +1,9 @@
 import Board from "../Board";
 import CanvasTile from "./CanvasTile";
-import { rand, range } from "../utilities";
+import { range, distanceBetween, findMap } from "../concerns/utilities";
 import mouse, { Mouse } from "./mouse";
 import Shape, { defaultShapes } from "../Shape";
+import { GridPosition, CoordPosition } from "../types/common";
 
 export type SwapDirection = 'none'|'up'|'down'|'left'|'right';
 
@@ -32,23 +33,7 @@ export interface BoardDragEvent {
 
 export type BoardDragEventCallback = (event: BoardDragEvent) => void;
 
-export interface CoordPosition {
-  x: number;
-  y: number;
-}
-
-export interface GridPosition {
-  row: number;
-  col: number;
-}
-
 const blankCanvasTileInfo = (): BlankCanvasTileInfo => ({ row: -1, col: -1, tile: null });
-
-const distanceBetween = (origin: CoordPosition, destination: CoordPosition): number => {
-  const dx = destination.x - origin.x;
-  const dy = destination.y - origin.y;
-  return Math.sqrt((dx ** 2) + (dy ** 2));
-};
 
 export default class CanvasBoard extends Board<CanvasTile> {
   public x: number;
@@ -60,27 +45,25 @@ export default class CanvasBoard extends Board<CanvasTile> {
   public dragEndCallbacks: BoardDragEventCallback[] = [];
   public dragCallbacks: BoardDragEventCallback[] = [];
   public shapes: Shape[];
-  public applySelectedStyle: CanvasTile['applySelectedStyle'];
-  public applyTargetedStyle: CanvasTile['applyTargetedStyle'];
-  public applyMatchedStyle: CanvasTile['applyMatchedStyle'];
+  public applyNormalStyle?: CanvasTile['applyNormalStyle'];
+  public applySelectedStyle?: CanvasTile['applySelectedStyle'];
+  public applyTargetedStyle?: CanvasTile['applyTargetedStyle'];
+  public applyMatchedStyle?: CanvasTile['applyMatchedStyle'];
   public matchAnimationMs: number;
   private dragOrigin: CanvasTileInfo = blankCanvasTileInfo();
+  private swapOrigin: CanvasTileInfo = blankCanvasTileInfo();
+  private swapTarget: CanvasTileInfo = blankCanvasTileInfo();
   private startedSettlingAt?: Date;
 
   constructor(opts: Partial<CanvasBoard>) {
     super({
       ...opts,
-      tileTypes: opts.tileTypes || ['red', 'orange', 'yellow', 'green', 'blue'],
-      tileGenerator() {
-        return new CanvasTile({
-          type: this.tileTypes[Math.floor(rand(0, this.tileTypes.length))],
-          width: this.tileWidth,
-          height: this.tileHeight,
-          colorIsType: true,
-          applySelectedStyle: this.applySelectedStyle,
-          applyTargetedStyle: this.applyTargetedStyle,
-          applyMatchedStyle: this.applyMatchedStyle,
-        });
+      tileDefs: {
+        red: { generator: ({ variant }) => this.defaultNewTileOfType('red', variant) },
+        orange: { generator: ({ variant }) => this.defaultNewTileOfType('orange', variant) },
+        purple: { generator: ({ variant }) => this.defaultNewTileOfType('purple', variant) },
+        green: { generator: ({ variant }) => this.defaultNewTileOfType('green', variant) },
+        blue: { generator: ({ variant }) => this.defaultNewTileOfType('blue', variant) },
       },
     });
 
@@ -91,9 +74,10 @@ export default class CanvasBoard extends Board<CanvasTile> {
     this.height = opts.height || this.width;
     this.sensitivity = opts.sensitivity || 25;
     this.shapes = opts.shapes || defaultShapes();
-    this.applySelectedStyle = opts.applySelectedStyle || (() => {});
-    this.applyTargetedStyle = opts.applyTargetedStyle || (() => {});
-    this.applyMatchedStyle = opts.applyMatchedStyle || (() => {});
+    this.applyNormalStyle = opts.applyNormalStyle;
+    this.applySelectedStyle = opts.applySelectedStyle;
+    this.applyTargetedStyle = opts.applyTargetedStyle;
+    this.applyMatchedStyle = opts.applyMatchedStyle;
     this.matchAnimationMs = opts.matchAnimationMs || 250;
 
     mouse.onPress(this.runDragStartCallbacks.bind(this));
@@ -140,18 +124,84 @@ export default class CanvasBoard extends Board<CanvasTile> {
   }
 
   update(): void {
-    this.rows[0] = this.rows[0].map(tile => (tile.blank ? this.tileGenerator() : tile));
+    this.rows[0] = this.rows[0].map(tile => (tile.blank ? this.newMundaneTile() : tile));
     const stillGonnaSettle = this.rows.slice(1).some((row) => row.some(tile => tile.blank));
     if (stillGonnaSettle) return;
 
     const matchedShapes = this.matchShapes();
-    matchedShapes.forEach(({ shape, tiles }) => {
-      tiles.forEach(tile => {
-        tile.matched = true;
-        setTimeout(() => {
-          tile.blank = true;
-        }, this.matchAnimationMs);
-      });
+    if (!matchedShapes.length) return;
+    
+    const targetTile = this.swapTarget.tile;
+    const originTile = this.swapOrigin.tile;
+    const sortedMatchedShapes = [...matchedShapes].sort((a, b) => {
+      if (a.shape.value > b.shape.value) return -1;
+      if (b.shape.value > a.shape.value) return 1;
+      if (a.tiles.some(tile => (tile === targetTile || tile === originTile))) return -1;
+      if (b.tiles.some(tile => (tile === targetTile || tile === originTile))) return 1;
+      return 0;
+    });
+
+    const { tiles, shape, rotation } = sortedMatchedShapes[0];
+    const variant = this.variantForShape(shape, rotation);
+    let variantSet = false;
+
+    const tilesToRemove: CanvasTile[] = [];
+    const tilesToExplode: CanvasTile[] = [];
+    tiles.forEach((tile) => {
+      const userMovedTile = tile === targetTile || tile == originTile;
+      if (variant && !variantSet && userMovedTile) {
+        tile.variant = variant;
+        variantSet = true;
+      } else {
+        tile.isMundane ? tilesToRemove.push(tile) : tilesToExplode.push(tile);
+      }
+    });
+
+    tilesToExplode.forEach((tile) => {
+      const tileInfo = this.findTile(tile);
+      const casualties: CanvasTile[] = [];
+
+      switch (tile.variant) {
+        case 'horizontalClear': casualties.push(...this.rows[tileInfo.row]); break;
+        case 'verticalClear': casualties.push(...this.columns[tileInfo.col]); break;
+        case 'crossClear': {
+          casualties.push(...this.columns[tileInfo.col]);
+          casualties.push(...this.rows[tileInfo.row]);
+          break;
+        }
+        case 'typeClear': {
+          const tilesOfType = this.tiles.filter(({ type }) => type === tile.type);
+          casualties.push(...tilesOfType);
+          break;
+        }
+        case 'bombClear': {
+          const bombShape = new Shape({
+            map: [
+              [false, true],
+              [true, true, true],
+              [false, true],
+            ],
+          });
+          const gridForMatching = this.rows.slice(tileInfo.row).map(row => row.slice(tileInfo.col));
+          const { matched } = bombShape.filter(gridForMatching);
+          casualties.push(...matched);
+          break;
+        }
+      }
+
+      tilesToRemove.push(...casualties);
+    });
+
+    if (variant && !variantSet && tilesToRemove.length) {
+      const centerIndex = Math.floor(tilesToRemove.length / 2);
+      const tile = tilesToRemove.splice(centerIndex, 1)[0];
+      tile.variant = variant;
+      variantSet = true;
+    }
+
+    tilesToRemove.forEach((tile) => {
+      tile.matched = true;
+      setTimeout(() => { tile.blank = true }, this.matchAnimationMs);
     });
   }
 
@@ -184,6 +234,14 @@ export default class CanvasBoard extends Board<CanvasTile> {
     const col = Math.floor(fractionX * this.colCount);
     const tile = this.rows[row][col];
     return { row, col, tile };
+  }
+
+  findTile(target: CanvasTile): CanvasTileInfo {
+    return findMap(this.rows, (rowTiles, row) => {
+      return findMap(rowTiles, (tile, col) => {
+        if (target === tile) return { row, col, tile };
+      });
+    }) || blankCanvasTileInfo();
   }
 
   tileCenter(tileInfo: CanvasTileInfo): CoordPosition {
@@ -254,26 +312,63 @@ export default class CanvasBoard extends Board<CanvasTile> {
     tile.blank = true;
   }
 
-  matchShapes(): { shape: Shape; tiles: CanvasTile[] }[] {
+  matchShapes(): { shape: Shape; rotation: number; tiles: CanvasTile[] }[] {
     return range(this.colCount).reduce((memo, colIndex) => {
       this.shapes.forEach((shape) => {
         this.rows.forEach((_row, rowIndex) => {
           const newGrid = this.rows.slice(rowIndex).map(row => row.slice(colIndex));
-          const tiles = shape.match(newGrid, 'type');
-          if (tiles.length) memo.push({ shape, tiles });
+          const { rotation, matched } = shape.match(newGrid, 'type');
+          if (matched.length) memo.push({ shape, rotation, tiles: matched });
         });
       });
       return memo;
-    }, [] as { shape: Shape; tiles: CanvasTile[] }[]);
+    }, [] as { shape: Shape; rotation: number; tiles: CanvasTile[] }[]);
+  }
+
+  private defaultNewTileOfType(type: string, variant?: string): CanvasTile {
+    // future: change colors for "color" types here
+    const colors = {
+      red: 'red',
+      orange: 'orange',
+      purple: 'purple',
+      green: 'green',
+      blue: 'blue',
+    };
+
+    return new CanvasTile({
+      type,
+      variant,
+      color: colors[type as keyof typeof colors],
+      width: this.tileWidth,
+      height: this.tileHeight,
+      applyNormalStyle: this.applyNormalStyle,
+      applySelectedStyle: this.applySelectedStyle,
+      applyTargetedStyle: this.applyTargetedStyle,
+      applyMatchedStyle: this.applyMatchedStyle,
+    });
+  }
+
+  private variantForShape(shape: Shape, rotation: number): string {
+    switch (shape.value) {
+      case 2: return rotation % 2 === 0 ? 'verticalClear' : 'horizontalClear';
+      case 3: return 'typeClear';
+      case 4: return 'typeClear';
+      case 5: return 'crossClear';
+      case 6: return 'crossClear';
+      case 7: return 'bombClear';
+      default: return '';
+    }
   }
 
   private swapTileWithTile(from: CoordPosition|GridPosition, to: CoordPosition|GridPosition): void {
     const origin = this.tileAt(from);
     if (!origin.tile) return;
 
+    this.swapOrigin = origin;
     const destination = this.tileAt(to);
     if (!destination.tile) return;
 
+    this.swapTarget = destination;
     this.rows[destination.row][destination.col] = origin.tile;
     this.rows[origin.row][origin.col] = destination.tile;
   }
@@ -282,9 +377,11 @@ export default class CanvasBoard extends Board<CanvasTile> {
     const origin = this.tileAt(from);
     if (!origin.tile) return;
 
+    this.swapOrigin = origin;
     const destination = this.adjacentTile(origin, direction);
     if (!destination.tile) return;
 
+    this.swapTarget = destination;
     this.rows[destination.row][destination.col] = origin.tile;
     this.rows[origin.row][origin.col] = destination.tile;
   }
@@ -313,6 +410,9 @@ export default class CanvasBoard extends Board<CanvasTile> {
   }
 
   private runDragStartCallbacks(mouse: Mouse): void {
+    const settling = this.checkSettle();
+    if (settling) return;
+
     const { x, y } = mouse;
     const origin = this.tileAt({ x, y });
     if (!origin.tile) return;
@@ -329,6 +429,9 @@ export default class CanvasBoard extends Board<CanvasTile> {
   }
 
   private runDragEndCallbacks(mouse: Mouse): void {
+    const settling = this.checkSettle();
+    if (settling) return;
+
     const origin = this.dragOrigin;
     if (!origin.tile) return;
 
@@ -347,6 +450,9 @@ export default class CanvasBoard extends Board<CanvasTile> {
   }
 
   private runDragCallbacks(mouse: Mouse): void {
+    const settling = this.checkSettle();
+    if (settling) return;
+
     const origin = this.dragOrigin;
     if (!origin.tile) return;
 

@@ -1,19 +1,69 @@
 import Tile from "./Tile";
-import { range } from "./utilities";
+import { range, sample } from "./concerns/utilities";
+import { Need } from "./types/common";
 
-export default class Board<TileClass = Tile> {
+
+// export interface MundaneTileDef<TileClass extends Tile> {
+//   special: false;
+//   generator: () => TileClass;
+// }
+
+// export interface SpecialTileDef<TileClass extends Tile> {
+//   special: true;
+//   generator: () => TileClass;
+// }
+
+// export type TileDef<TileClass extends Tile> = MundaneTileDef<TileClass> | SpecialTileDef<TileClass>;
+
+// export interface MundaneTileDefs<TileClass extends Tile> {
+//   [type: string]: MundaneTileDef<TileClass>;
+// }
+
+// export interface SpecialTileDefs<TileClass extends Tile> {
+//   [type: string]: MundaneTileDef<TileClass>;
+// }
+
+// export interface TileDefs<TileClass extends Tile> {
+//   [type: string]: TileDef<TileClass>;
+// }
+
+export type TileGenerator<TileClass extends Tile> = (opts: Pick<TileClass, 'variant'>) => TileClass;
+
+export interface MundaneTileDef<TileClass extends Tile> {
+  generator: TileGenerator<TileClass>;
+}
+
+export interface SpecialTileDef<TileClass extends Tile> {
+  generator: TileGenerator<TileClass>;
+}
+
+export type TileDef<TileClass extends Tile> = MundaneTileDef<TileClass> | SpecialTileDef<TileClass>;
+
+export interface MundaneTileDefs<TileClass extends Tile> {
+  [type: string]: MundaneTileDef<TileClass>;
+}
+
+export interface SpecialTileDefs<TileClass extends Tile> {
+  [type: string]: MundaneTileDef<TileClass>;
+}
+
+export interface TileDefs<TileClass extends Tile> {
+  [type: string]: TileDef<TileClass>;
+}
+
+export default class Board<TileClass extends Tile = Tile> {
   public rowCount = 10;
   public colCount = 10;
-  public tileTypes = ['a', 'b', 'c', 'd'];
+  // public tileTypes = ['a', 'b', 'c', 'd'];
   public tileClass = Tile;
-  public tileGenerator: () => TileClass;
+  public tileDefs: TileDefs<TileClass>;
   private _rows!: TileClass[][];
   private _columns?: TileClass[][];
 
-  constructor(opts: { tileGenerator: () => TileClass } & Partial<Board>) {
+  constructor(opts: Need<Board<TileClass>, 'tileDefs'>) {
     Object.assign(this, opts);
-    this.tileGenerator = opts.tileGenerator;
-    this.rows = this.newRows();
+    this.tileDefs = opts.tileDefs;
+    // this.rows = this.newRows();
   }
 
   set rows(rows: TileClass[][]) {
@@ -60,11 +110,60 @@ export default class Board<TileClass = Tile> {
     return this.rows.reduce((tiles, row) => [...tiles, ...row], []);
   }
 
-  newRows(): TileClass[][] {
-    return range(this.rowCount, () => {
-      return range(this.colCount, () => {
-        return this.tileGenerator();
-      });
-    });
+  get tileTypes(): string[] {
+    return Object.keys(this.tileDefs);
   }
+
+  // get mundaneTileTypes(): string[] {
+  //   return Object.keys(this.mundaneTileDefs);
+  // }
+
+  // get specialTileTypes(): string[] {
+  //   return Object.keys(this.specialTileDefs);
+  // }
+
+  // get mundaneTileDefs(): MundaneTileDefs<TileClass> {
+  //   return Object.keys(this.tileDefs).reduce((memo, key) => {
+  //     const definition = this.tileDefs[key];
+  //     return definition.special ? memo : ({ ...memo, [key]: definition } as MundaneTileDefs<TileClass>);
+  //   }, {});
+  // }
+
+  // get specialTileDefs(): SpecialTileDefs<TileClass> {
+  //   return Object.keys(this.tileDefs).reduce((memo, key) => {
+  //     const definition = this.tileDefs[key];
+  //     return definition.special ? ({ ...memo, [key]: definition } as SpecialTileDefs<TileClass>) : memo;
+  //   }, {});
+  // }
+
+  // newMundaneTile(): TileClass {
+  //   const { mundaneTileTypes, mundaneTileDefs } = this;
+  //   const tileType = sample(mundaneTileTypes);
+  //   const tileDef = mundaneTileDefs[tileType];
+  //   return tileDef.generator();
+  // }
+
+  // newSpecialTile(): TileClass {
+  //   const { specialTileTypes, specialTileDefs } = this;
+  //   const tileType = sample(specialTileTypes);
+  //   const tileDef = specialTileDefs[tileType];
+  //   return tileDef.generator();
+  // }
+
+  newMundaneTile(): TileClass {
+    const tileType = sample(this.tileTypes);
+    const tileDef = this.tileDefs[tileType];
+    return tileDef.generator({ variant: 'mundane' });
+  }
+
+  newRows(): TileClass[][] {
+    return range(this.rowCount, () => (range(this.colCount, () => this.newMundaneTile())));
+  }
+
+  // private defaultNewTileOfType(type: string, variant?: string): TileClass {
+  //   return new Tile({
+  //     type,
+  //     variant,
+  //   });
+  // }
 }

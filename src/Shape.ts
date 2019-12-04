@@ -1,4 +1,4 @@
-import { range } from "./utilities";
+import { range, filterMap, findMap } from "./concerns/utilities";
 
 export type ShapeMap = boolean[][];
 
@@ -54,10 +54,10 @@ export default class Shape {
     return this._linear;
   }
 
-  match<O extends Record<string, any>>(grid: O[][], field: keyof O, rotation = 0, shapeMap = this.map): O[] {
-    if (rotation > 3) return [];
-
+  match<O extends Record<string, any>>(grid: O[][], field: keyof O, rotation = 0, shapeMap = this.map): { rotation: number; matched: O[] } {
     const matched = [] as O[];
+    if (rotation > 3) return { rotation, matched };
+
     let matchValueSet = false;
     let matchValue: O[keyof O];
 
@@ -84,7 +84,30 @@ export default class Shape {
       });
     });
 
-    return allMatched ? matched : this.match(grid, field, rotation + 1, rotate(shapeMap));
+    return allMatched ? { rotation, matched } : this.match(grid, field, rotation + 1, rotate(shapeMap));
+  }
+
+  filter<O extends Record<string, any>>(grid: O[][], rotation = 0, shapeMap = this.map): { rotation: number; matched: O[] } {
+    const matched = [] as O[];
+    if (rotation > 3) return { rotation, matched };
+
+    return {
+      rotation,
+      matched: shapeMap.reduce((memo, matcherRow, rowIndex) => {
+        const gridRow = grid[rowIndex];
+        // if (!gridRow.length) return memo;
+
+        return {
+          ...memo,
+          ...matcherRow.reduce((memo2, mustMatch, colIndex) => {
+            const tile = gridRow[colIndex];
+            if (!tile) return memo2;
+
+            return mustMatch ? [...memo2, tile] : memo2;
+          }, [] as O[]),
+        };
+      }, [] as O[]),
+    };
   }
 }
 
