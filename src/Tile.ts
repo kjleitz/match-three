@@ -5,6 +5,7 @@ const MUNDANE_VARIANT = 'mundane';
 export default class Tile {
   public type: string;
   public value: number;
+  public explode = false;
   public _variant!: string;
 
   constructor({ type, value, variant }: Need<Tile, 'type'>) {

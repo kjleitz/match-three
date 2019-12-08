@@ -19,6 +19,7 @@ export default class CanvasTile extends Tile {
   public applyMatchedStyle: (ctx: CanvasRenderingContext2D, tile: CanvasTile, pos: CoordPosition) => void;
   private _imgUrl = '';
   private _image?: HTMLImageElement;
+  private blankTimeout?: number;
 
   constructor(opts: Need<CanvasTile, 'type'>) {
     super(opts);
@@ -40,7 +41,15 @@ export default class CanvasTile extends Tile {
   }
 
   set matched(matched: boolean) {
-    this.matchedAt = matched ? (this.matchedAt || new Date()) : null;
+    if (matched && this.matchedAt) return;
+
+    clearTimeout(this.blankTimeout);
+    if (matched) {
+      this.matchedAt = new Date();
+      this.blankTimeout = window.setTimeout(() => this.blank = true, this.matchAnimationMs);
+    } else {
+      this.matchedAt = null;
+    }
   }
 
   get imgUrl(): string {

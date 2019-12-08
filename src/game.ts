@@ -5,8 +5,8 @@ import CanvasBoard from "./game/CanvasBoard";
 window.addEventListener('DOMContentLoaded', () => {
   const board = new CanvasBoard({
     width: Math.min(window.innerWidth, window.innerHeight, 500),
-    rowCount: 10,
-    colCount: 10,
+    rowCount: 9,
+    colCount: 9,
   });
 
   board.onDragEnd((event) => {

@@ -1,25 +1,14 @@
-import { range, filterMap, findMap } from "./concerns/utilities";
+import { range, rotate, findMap, rotateGridPosition } from "./concerns/utilities";
+import { GridPosition } from "./types/common";
 
 export type ShapeMap = boolean[][];
-
-function rotate<T>(grid: T[][]): T[][] {
-  const newGrid = [] as T[][];
-  for (let rowIndex = 0; rowIndex < grid.length; rowIndex++) {
-    const row = grid[rowIndex];
-    for (let colIndex = 0; colIndex < row.length; colIndex++) {
-      const item = row[colIndex];
-      newGrid[colIndex] = newGrid[colIndex] || [];
-      newGrid[colIndex].unshift(item);
-    }
-  }
-  return newGrid;
-}
 
 export default class Shape {
   public value: number;
   private _map!: ShapeMap;
   private _extend!: boolean;
   private _linear!: boolean;
+  private _centerPosition?: GridPosition;
 
   constructor(opts: Partial<Shape> = {}) {
     this.value = opts.value || 1;
@@ -35,6 +24,10 @@ export default class Shape {
     });
   }
 
+  static rotated(shape: Shape, rotations = 1): Shape {
+    return new Shape({ ...shape, map: rotate(shape.map, rotations) });
+  }
+
   get extend(): boolean { return this._extend && this.linear }
   set extend(extend: boolean) { this._extend = extend }
 
@@ -42,7 +35,7 @@ export default class Shape {
   set map(map: ShapeMap) {
     delete this._linear;
     const rowLength = map.reduce((max, { length }) => (length > max ? length : max), 0);
-    this._map = map.map((row) => range(rowLength, i => (row[i] || false)));
+    this._map = map.map(row => range(rowLength, i => (row[i] || false)));
   }
 
   get linear(): boolean {
@@ -54,14 +47,15 @@ export default class Shape {
     return this._linear;
   }
 
-  match<O extends Record<string, any>>(grid: O[][], field: keyof O, rotation = 0, shapeMap = this.map): { rotation: number; matched: O[] } {
+  match<O>(grid: O[][], field: keyof O, rotation = 0): { rotation: number; matched: O[]; center: O|null } {
     const matched = [] as O[];
-    if (rotation > 3) return { rotation, matched };
+    if (rotation > 3) return { rotation, matched, center: null };
 
     let matchValueSet = false;
     let matchValue: O[keyof O];
+    const rotatedMap = rotate(this.map, rotation);
 
-    const allMatched = shapeMap.every((matcherRow, rowIndex) => {
+    const allMatched = rotatedMap.every((matcherRow, rowIndex) => {
       const gridRow = grid[rowIndex];
       if (!gridRow) return false;
 
@@ -84,30 +78,70 @@ export default class Shape {
       });
     });
 
-    return allMatched ? { rotation, matched } : this.match(grid, field, rotation + 1, rotate(shapeMap));
+    if (allMatched) {
+      const { row, col } = this.centerPosition(rotation);
+      const center = grid[row][col];
+      return { rotation, matched, center };
+    }
+
+    return this.match(grid, field, rotation + 1);
   }
 
-  filter<O extends Record<string, any>>(grid: O[][], rotation = 0, shapeMap = this.map): { rotation: number; matched: O[] } {
-    const matched = [] as O[];
-    if (rotation > 3) return { rotation, matched };
+  screen<O extends Record<string, any>>(grid: O[][], offset: GridPosition = { row: 0, col: 0 }): O[] {
+    const offsetMapRows = offset.row < 0
+      ? this.map.slice(-1 * offset.row)
+      : [...range(offset.row, () => []), ...this.map];
 
-    return {
-      rotation,
-      matched: shapeMap.reduce((memo, matcherRow, rowIndex) => {
-        const gridRow = grid[rowIndex];
-        // if (!gridRow.length) return memo;
+    const offsetMap = offsetMapRows.map((row) => {
+      return offset.col < 0
+        ? row.slice(-1 * offset.col)
+        : [...range(offset.col, () => false), ...row];
+    });
 
-        return {
-          ...memo,
-          ...matcherRow.reduce((memo2, mustMatch, colIndex) => {
-            const tile = gridRow[colIndex];
-            if (!tile) return memo2;
+    // debugger
 
-            return mustMatch ? [...memo2, tile] : memo2;
-          }, [] as O[]),
-        };
-      }, [] as O[]),
-    };
+    return offsetMap.reduce((allMatchedTiles, matcherRow, rowIndex) => {
+      const gridRow = grid[rowIndex];
+
+      return [
+        ...allMatchedTiles,
+        ...matcherRow.reduce((matchedRowTiles, mustMatch, colIndex) => {
+          const tile = gridRow && gridRow[colIndex];
+          return tile && mustMatch ? [...matchedRowTiles, tile] : matchedRowTiles;
+        }, [] as O[]),
+      ];
+    }, [] as O[]);
+  }
+
+  get center(): { mustMatch: boolean } & GridPosition {
+    const rowIndex = Math.floor(this.map.length / 2);
+    const mapRow = this.map[rowIndex];
+    const colIndex = Math.floor(mapRow.length / 2);
+    const mustMatch = mapRow[colIndex];
+    return { mustMatch, row: rowIndex, col: colIndex };
+  }
+
+  centerPosition(rotations = 0): GridPosition {
+    if (typeof this._centerPosition === 'undefined') {
+      const mustMatchCount = this.map.reduce((total, matcherRow) => {
+        return total + matcherRow.reduce((sum, mustMatch) => (mustMatch ? sum + 1 : sum), 0);
+      }, 0);
+
+      const centerIndex = Math.floor(mustMatchCount / 2);
+
+      let cursor = 0;
+      this._centerPosition = findMap(this.map, (row, rowIndex) => {
+        return findMap(row, (mustMatch, index) => {
+          if (!mustMatch) return;
+          if (cursor === centerIndex) return { row: rowIndex, col: index }; // eslint-disable-line consistent-return
+          cursor += 1;
+        });
+      });
+    }
+
+    const rowCount = this.map.length;
+    const colCount = this.map[0].length;
+    return rotateGridPosition(this._centerPosition!, rowCount, colCount, rotations);
   }
 }
 

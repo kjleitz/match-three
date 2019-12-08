@@ -1,4 +1,4 @@
-import { CoordPosition, Nullish } from "../types/common";
+import { CoordPosition, Nullish, GridPosition } from "../types/common";
 
 export function range<T>(min: number, ...maxAndOrMapper: []): number[];
 export function range<T>(min: number, ...maxAndOrMapper: [number]): number[];
@@ -72,14 +72,14 @@ export function isNullish(value: any): value is Nullish {
   return typeof value === 'undefined' || Object.prototype.toString.call(value) === '[object Null]';
 }
 
-export const filterMap = <T extends any, K extends any>(list: T[], mapper: (item: T, index: number, original: T[]) => K|Nullish): K[] => {
+export const filterMap = <T, K>(list: T[], mapper: (item: T, index: number, original: T[]) => K|Nullish): K[] => {
   return list.reduce((memo, item, index, original) => {
     const result = mapper(item, index, original);
     return isNullish(result) ? memo : [...memo, result];
   }, [] as K[]);
 };
 
-export const findMap = <T extends any, K extends any>(list: T[], mapper: (item: T, index: number, original: T[]) => K|Nullish): K|Nullish => {
+export const findMap = <T, K>(list: T[], mapper: (item: T, index: number, original: T[]) => K|Nullish): K|undefined => {
   let result;
   list.find((item, index, original) => {
     result = mapper(item, index, original);
@@ -107,4 +107,44 @@ export const uniq = <T extends any, P extends keyof T>(list: T[], mapper: P|Null
     seen.add(key);
     return [...memo, item];
   }, [] as T[]);
+};
+
+export const rotate = <T>(grid: T[][], rotations = 1): T[][] => {
+  const quadrants = rotations % 4;
+  switch (quadrants < 0 ? 4 - quadrants : quadrants) {
+    case 1: {
+      return grid.reduce((memo, row, rowIndex) => {
+        row.forEach((item, colIndex) => {
+          const newRowIndex = colIndex;
+          const newColIndex = grid.length - rowIndex - 1;
+          memo[newRowIndex] = memo[newRowIndex] || [];
+          memo[newRowIndex][newColIndex] = item;
+        });
+        return memo;
+      }, [] as T[][]);
+    }
+    case 2: return [...grid].reverse().map(row => [...row].reverse());
+    case 3: {
+      return grid.reduce((memo, row, rowIndex) => {
+        row.forEach((item, colIndex) => {
+          const newRowIndex = row.length - colIndex - 1;
+          const newColIndex = rowIndex;
+          memo[newRowIndex] = memo[newRowIndex] || [];
+          memo[newRowIndex][newColIndex] = item;
+        });
+        return memo;
+      }, [] as T[][]);
+    }
+    default: return grid.map(row => [...row]);
+  }
+};
+
+export const rotateGridPosition = ({ row, col }: GridPosition, rows: number, cols: number, rotations: number): GridPosition => {
+  const quadrants = rotations % 4;
+  switch (quadrants < 0 ? 4 - quadrants : quadrants) {
+    case 1: return { row: col, col: rows - row - 1 };
+    case 2: return { row: rows - row - 1, col: cols - col - 1 };
+    case 3: return { row: cols - col - 1, col: row };
+    default: return { row, col };
+  }
 };

@@ -1,5 +1,5 @@
 import Tile from "./Tile";
-import { range, sample } from "./concerns/utilities";
+import { range, sample, rotate } from "./concerns/utilities";
 import { Need } from "./types/common";
 
 
@@ -52,58 +52,24 @@ export interface TileDefs<TileClass extends Tile> {
 }
 
 export default class Board<TileClass extends Tile = Tile> {
-  public rowCount = 10;
-  public colCount = 10;
-  // public tileTypes = ['a', 'b', 'c', 'd'];
+  public rowCount = 9;
+  public colCount = 9;
   public tileClass = Tile;
   public tileDefs: TileDefs<TileClass>;
-  private _rows!: TileClass[][];
-  private _columns?: TileClass[][];
+  private _rows?: TileClass[][];
 
   constructor(opts: Need<Board<TileClass>, 'tileDefs'>) {
     Object.assign(this, opts);
     this.tileDefs = opts.tileDefs;
-    // this.rows = this.newRows();
-  }
-
-  set rows(rows: TileClass[][]) {
-    if (!rows.every(row => rows[0].length === row.length)) {
-      throw new Error('Rows must all be the same length');
-    }
-    this._rows = rows;
-    delete this._columns;
-    this.rowCount = rows.length;
-    this.colCount = rows[0].length;
   }
 
   get rows(): TileClass[][] {
+    this._rows = this._rows || this.newRows();
     return this._rows;
   }
 
-  set columns(columns: TileClass[][]) {
-    if (!columns.every(column => columns[0].length === column.length)) {
-      throw new Error('Columns must all be the same length');
-    }
-
-    this.rows = columns.reduce((rows, column) => {
-      column.forEach((tile, index) => {
-        rows[index] = [...(rows[index] || []), tile];
-      });
-      return rows;
-    }, [] as TileClass[][]);
-  }
-
-  get columns(): TileClass[][] {
-    if (this._columns) return this._columns;
-
-    this._columns = this.rows.reduce((columns, row) => {
-      row.forEach((tile, index) => {
-        columns[index] = [...(columns[index] || []), tile];
-      });
-      return columns;
-    }, [] as TileClass[][]);
-
-    return this._columns;
+  set rows(rows: TileClass[][]) {
+    this._rows = rows;
   }
 
   get tiles(): TileClass[] {

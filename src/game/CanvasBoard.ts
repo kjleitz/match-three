@@ -84,7 +84,7 @@ export default class CanvasBoard extends Board<CanvasTile> {
     mouse.onDepress(this.runDragEndCallbacks.bind(this));
     mouse.onMove(this.runDragCallbacks.bind(this));
 
-    this.rows = this.newRows();
+    // this.rows = this.newRows();
   }
 
   get tileWidth(): number {
@@ -124,15 +124,15 @@ export default class CanvasBoard extends Board<CanvasTile> {
   }
 
   update(): void {
-    this.rows[0] = this.rows[0].map(tile => (tile.blank ? this.newMundaneTile() : tile));
-    const stillGonnaSettle = this.rows.slice(1).some((row) => row.some(tile => tile.blank));
-    if (stillGonnaSettle) return;
+    this.spawnNewTiles();
+    if (this.tilesWillDrop()) return;
 
     const matchedShapes = this.matchShapes();
     if (!matchedShapes.length) return;
-    
-    const targetTile = this.swapTarget.tile;
+
     const originTile = this.swapOrigin.tile;
+    const targetTile = this.swapTarget.tile;
+
     const sortedMatchedShapes = [...matchedShapes].sort((a, b) => {
       if (a.shape.value > b.shape.value) return -1;
       if (b.shape.value > a.shape.value) return 1;
@@ -141,68 +141,82 @@ export default class CanvasBoard extends Board<CanvasTile> {
       return 0;
     });
 
-    const { tiles, shape, rotation } = sortedMatchedShapes[0];
-    const variant = this.variantForShape(shape, rotation);
-    let variantSet = false;
-
-    const tilesToRemove: CanvasTile[] = [];
-    const tilesToExplode: CanvasTile[] = [];
-    tiles.forEach((tile) => {
-      const userMovedTile = tile === targetTile || tile == originTile;
-      if (variant && !variantSet && userMovedTile) {
-        tile.variant = variant;
-        variantSet = true;
-      } else {
-        tile.isMundane ? tilesToRemove.push(tile) : tilesToExplode.push(tile);
+    const transcendentTiles: Map<CanvasTile, string[]> = new Map();
+    sortedMatchedShapes.forEach(({ tiles, shape, rotation }) => {
+      tiles.forEach(tile => this.explodeTile(tile));
+      const variant = this.variantForShape(shape, rotation);
+      if (variant) {
+        const movedTile = tiles.find(tile => (tile === targetTile || tile === originTile));
+        const transcendent = movedTile || this.centerTile(tiles)!;
+        const existing = transcendentTiles.get(transcendent);
+        transcendentTiles.set(transcendent, [...(existing || []), variant]);
       }
     });
 
-    tilesToExplode.forEach((tile) => {
-      const tileInfo = this.findTile(tile);
-      const casualties: CanvasTile[] = [];
-
-      switch (tile.variant) {
-        case 'horizontalClear': casualties.push(...this.rows[tileInfo.row]); break;
-        case 'verticalClear': casualties.push(...this.columns[tileInfo.col]); break;
-        case 'crossClear': {
-          casualties.push(...this.columns[tileInfo.col]);
-          casualties.push(...this.rows[tileInfo.row]);
-          break;
-        }
-        case 'typeClear': {
-          const tilesOfType = this.tiles.filter(({ type }) => type === tile.type);
-          casualties.push(...tilesOfType);
-          break;
-        }
-        case 'bombClear': {
-          const bombShape = new Shape({
-            map: [
-              [false, true],
-              [true, true, true],
-              [false, true],
-            ],
-          });
-          const gridForMatching = this.rows.slice(tileInfo.row).map(row => row.slice(tileInfo.col));
-          const { matched } = bombShape.filter(gridForMatching);
-          casualties.push(...matched);
-          break;
-        }
-      }
-
-      tilesToRemove.push(...casualties);
+    transcendentTiles.forEach((variants, tile) => {
+      tile.variant = variants[0];
+      tile.matched = false;
     });
+  }
 
-    if (variant && !variantSet && tilesToRemove.length) {
-      const centerIndex = Math.floor(tilesToRemove.length / 2);
-      const tile = tilesToRemove.splice(centerIndex, 1)[0];
-      tile.variant = variant;
-      variantSet = true;
+  centerTile(tiles: CanvasTile[]): CanvasTile|undefined {
+    return tiles[Math.floor(tiles.length / 2)];
+  }
+
+  spawnNewTiles(): void {
+    this.rows[0] = this.rows[0].map(tile => (tile.blank ? this.newMundaneTile() : tile));
+  }
+
+  tilesWillDrop(): boolean {
+    return this.rows.slice(1).some(row => row.some(tile => (tile.matched || tile.blank)));
+  }
+
+  explodeTile(tile: CanvasTile): void {
+    if (tile.isMundane) tile.matched = true;
+    if (tile.matched) return;
+
+    tile.matched = true;
+    switch (tile.variant) {
+      case 'horizontalClear': this.clearRow(this.findTile(tile)); break;
+      case 'verticalClear': this.clearCol(this.findTile(tile)); break;
+      case 'crossClear': this.clearCross(this.findTile(tile)); break;
+      case 'typeClear': this.clearType(tile.type); break;
+      case 'bombClear': this.clearBomb(this.findTile(tile)); break;
     }
+  }
 
-    tilesToRemove.forEach((tile) => {
-      tile.matched = true;
-      setTimeout(() => { tile.blank = true }, this.matchAnimationMs);
+  clearRow({ row }: Pick<GridPosition, 'row'>): void {
+    this.rows[row].forEach(tile => this.explodeTile(tile));
+  }
+
+  clearCol({ col }: Pick<GridPosition, 'col'>): void {
+    this.rows.forEach(row => this.explodeTile(row[col]));
+  }
+
+  clearCross({ row, col }: GridPosition): void {
+    this.clearRow({ row });
+    this.clearCol({ col });
+  }
+
+  clearType(type: string): void {
+    this.tiles.forEach(tile => { if (tile.type === type) this.explodeTile(tile); });
+  }
+
+  clearBomb({ row, col }: GridPosition): void {
+    const bombShape = new Shape({
+      map: [
+        [false, false, true],
+        [false, true, true, true],
+        [true, true, true, true, true],
+        [false, true, true, true],
+        [false, false, true],
+      ],
     });
+    const { center } = bombShape;
+    const bombTop = row - center.row;
+    const bombLeft = col - center.col;
+    const bombedTiles = bombShape.screen(this.rows, { row: bombTop, col: bombLeft });
+    bombedTiles.forEach(tile => this.explodeTile(tile));
   }
 
   checkSettle(): boolean {
@@ -312,17 +326,17 @@ export default class CanvasBoard extends Board<CanvasTile> {
     tile.blank = true;
   }
 
-  matchShapes(): { shape: Shape; rotation: number; tiles: CanvasTile[] }[] {
+  matchShapes(): { shape: Shape; rotation: number; tiles: CanvasTile[]; centerTile: CanvasTile }[] {
     return range(this.colCount).reduce((memo, colIndex) => {
       this.shapes.forEach((shape) => {
         this.rows.forEach((_row, rowIndex) => {
           const newGrid = this.rows.slice(rowIndex).map(row => row.slice(colIndex));
-          const { rotation, matched } = shape.match(newGrid, 'type');
-          if (matched.length) memo.push({ shape, rotation, tiles: matched });
+          const { rotation, matched, center } = shape.match(newGrid, 'type');
+          if (matched.length > 0) memo.push({ shape, rotation, tiles: matched, centerTile: center! });
         });
       });
       return memo;
-    }, [] as { shape: Shape; rotation: number; tiles: CanvasTile[] }[]);
+    }, [] as { shape: Shape; rotation: number; tiles: CanvasTile[]; centerTile: CanvasTile }[]);
   }
 
   private defaultNewTileOfType(type: string, variant?: string): CanvasTile {
