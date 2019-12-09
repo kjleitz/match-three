@@ -1,6 +1,6 @@
 import Board from "../Board";
 import CanvasTile from "./CanvasTile";
-import { range, distanceBetween, findMap } from "../concerns/utilities";
+import { range, distanceBetween, findMap, sample, tuple } from "../concerns/utilities";
 import mouse, { Mouse } from "./mouse";
 import Shape, { defaultShapes } from "../Shape";
 import { GridPosition, CoordPosition } from "../types/common";
@@ -54,6 +54,8 @@ export default class CanvasBoard extends Board<CanvasTile> {
   private swapOrigin: CanvasTileInfo = blankCanvasTileInfo();
   private swapTarget: CanvasTileInfo = blankCanvasTileInfo();
   private startedSettlingAt?: Date;
+  private needsShuffle = false;
+  private checkShuffleInterval?: number;
 
   constructor(opts: Partial<CanvasBoard>) {
     super({
@@ -84,7 +86,9 @@ export default class CanvasBoard extends Board<CanvasTile> {
     mouse.onDepress(this.runDragEndCallbacks.bind(this));
     mouse.onMove(this.runDragCallbacks.bind(this));
 
-    // this.rows = this.newRows();
+    this.stabilizeInitialTiles();
+
+    this.checkShuffleInterval = window.setInterval(() => this.checkShuffle(), 1000);
   }
 
   get tileWidth(): number {
@@ -127,6 +131,11 @@ export default class CanvasBoard extends Board<CanvasTile> {
     this.spawnNewTiles();
     if (this.tilesWillDrop()) return;
 
+    if (this.needsShuffle) {
+      // this.drawShuffle();
+      this.shuffle();
+    }
+
     const matchedShapes = this.matchShapes();
     if (!matchedShapes.length) return;
 
@@ -142,12 +151,12 @@ export default class CanvasBoard extends Board<CanvasTile> {
     });
 
     const transcendentTiles: Map<CanvasTile, string[]> = new Map();
-    sortedMatchedShapes.forEach(({ tiles, shape, rotation }) => {
+    sortedMatchedShapes.forEach(({ tiles, shape, rotation, centerTile }) => {
       tiles.forEach(tile => this.explodeTile(tile));
       const variant = this.variantForShape(shape, rotation);
       if (variant) {
         const movedTile = tiles.find(tile => (tile === targetTile || tile === originTile));
-        const transcendent = movedTile || this.centerTile(tiles)!;
+        const transcendent = movedTile || centerTile;
         const existing = transcendentTiles.get(transcendent);
         transcendentTiles.set(transcendent, [...(existing || []), variant]);
       }
@@ -157,10 +166,6 @@ export default class CanvasBoard extends Board<CanvasTile> {
       tile.variant = variants[0];
       tile.matched = false;
     });
-  }
-
-  centerTile(tiles: CanvasTile[]): CanvasTile|undefined {
-    return tiles[Math.floor(tiles.length / 2)];
   }
 
   spawnNewTiles(): void {
@@ -252,7 +257,7 @@ export default class CanvasBoard extends Board<CanvasTile> {
 
   findTile(target: CanvasTile): CanvasTileInfo {
     return findMap(this.rows, (rowTiles, row) => {
-      return findMap(rowTiles, (tile, col) => {
+      return findMap(rowTiles, (tile, col) => { // eslint-disable-line consistent-return
         if (target === tile) return { row, col, tile };
       });
     }) || blankCanvasTileInfo();
@@ -482,6 +487,43 @@ export default class CanvasBoard extends Board<CanvasTile> {
     this.dragCallbacks.forEach((callback) => {
       callback({ x, y, distance, direction, origin, destination, mouse });
     });
+  }
+
+  private replaceTile(tile1: CanvasTile, tile2: CanvasTile): void {
+    const { row, col } = this.findTile(tile1);
+    this.rows[row][col] = tile2;
+  }
+
+  private stabilizeInitialTiles(tries = 20): void {
+    if (tries <= 0) {
+      this.rows = this.newRows();
+      this.stabilizeInitialTiles();
+      return;
+    }
+
+    const matchedShapes = this.matchShapes();
+    if (!matchedShapes.length) return;
+
+    matchedShapes[0].tiles.forEach(tile => this.replaceTile(tile, this.newMundaneTile()));
+
+    this.stabilizeInitialTiles(tries - 1);
+  }
+
+  private possibleMatchesExist(): boolean {
+    return !!findMap(this.rows, (row, rowIndex) => {
+      return findMap(row, (_tile, colIndex) => {
+        const position = { row: rowIndex, col: colIndex };
+        return findMap(tuple('up', 'down', 'left', 'right'), (direction) => { // eslint-disable-line consistent-return
+          this.swapTileInDirection(position, direction);
+          if (this.matchShapes()) return true;
+          this.swapTileInDirection(position, direction);
+        });
+      });
+    });
+  }
+
+  private checkShuffle(): void {
+    this.needsShuffle = !this.possibleMatchesExist();
   }
 }
 

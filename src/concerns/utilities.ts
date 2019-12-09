@@ -1,4 +1,4 @@
-import { CoordPosition, Nullish, GridPosition } from "../types/common";
+import { CoordPosition, Nullish, GridPosition, Literal } from "../types/common";
 
 export function range<T>(min: number, ...maxAndOrMapper: []): number[];
 export function range<T>(min: number, ...maxAndOrMapper: [number]): number[];
@@ -14,7 +14,7 @@ export function range<T>(min: number, ...maxAndOrMapper: []|[number|((n: number)
   return list;
 }
 
-export const rand = (min: number, max = 0, int = false): number => {
+export const rand = (min: number, max = 0, int = true): number => {
   const [realMin, realMax] = min < max ? [min, max] : [max, min];
   const randomDiff = Math.random() * (realMax - realMin);
   return realMin + (int ? Math.floor(randomDiff) : randomDiff);
@@ -49,7 +49,7 @@ export const between = (num: number, min: number, max: number, inclusive = true)
 
 export const difference = (n: number, m: number): number => Math.abs(n - m);
 
-export const sample = <T extends any>(list: T[]): T => {
+export const sample = <T>(list: T[]): T => {
   return list[Math.floor(Math.random() * list.length)];
 };
 
@@ -88,7 +88,7 @@ export const findMap = <T, K>(list: T[], mapper: (item: T, index: number, origin
   return result;
 };
 
-export const uniq = <T extends any, P extends keyof T>(list: T[], mapper: P|Nullish|((item: T, index: number, original: T[]) => any), sorted = false): T[] => {
+export const uniq = <T, P extends keyof T>(list: T[], mapper: P|Nullish|((item: T, index: number, original: T[]) => any), sorted = false): T[] => {
   const mapperFn = isNullish(mapper) || typeof mapper === 'function' ? mapper : (item: T) => item[mapper];
 
   if (sorted && !mapperFn) {
@@ -148,3 +148,5 @@ export const rotateGridPosition = ({ row, col }: GridPosition, rows: number, col
     default: return { row, col };
   }
 };
+
+export const tuple = <T extends Literal>(...list: T[]): T[] => list;

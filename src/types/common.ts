@@ -18,3 +18,5 @@ export interface GridPosition {
 }
 
 export type Nullish = null|undefined;
+
+export type Literal = boolean|symbol|number|string|undefined|null|{}|[];
