@@ -31,6 +31,7 @@ export default class Board<TileClass extends Tile = Tile> {
   public colCount = 9;
   public tileClass = Tile;
   public tileDefs: TileDefs<TileClass>;
+  public onTileMatched?: (tile: TileClass) => void;
   private _rows?: TileClass[][];
 
   constructor(opts: Need<Board<TileClass>, 'tileDefs'>) {

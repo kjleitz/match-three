@@ -1,6 +1,6 @@
 import Board from "../Board";
 import CanvasTile from "./CanvasTile";
-import { range, distanceBetween, findMap, sample, tuple } from "../concerns/utilities";
+import { range, distanceBetween, findMap, sample, tuple, uniq } from "../concerns/utilities";
 import mouse, { Mouse } from "./mouse";
 import Shape, { defaultShapes } from "../Shape";
 import { GridPosition, CoordPosition } from "../types/common";
@@ -55,7 +55,6 @@ export default class CanvasBoard extends Board<CanvasTile> {
   private swapTarget: CanvasTileInfo = blankCanvasTileInfo();
   private startedSettlingAt?: Date;
   private needsShuffle = false;
-  private checkShuffleInterval?: number;
 
   constructor(opts: Partial<CanvasBoard>) {
     super({
@@ -88,7 +87,7 @@ export default class CanvasBoard extends Board<CanvasTile> {
 
     this.stabilizeInitialTiles();
 
-    this.checkShuffleInterval = window.setInterval(() => this.checkShuffle(), 1000);
+    window.setInterval(() => this.checkShuffle(), 1000);
   }
 
   get tileWidth(): number {
@@ -166,6 +165,13 @@ export default class CanvasBoard extends Board<CanvasTile> {
       tile.variant = variants[0];
       tile.matched = false;
     });
+
+    if (matchedShapes.length && this.onTileMatched) {
+      new Set([
+        ...Array.from(transcendentTiles.keys()),
+        ...this.tiles.filter(({ matched }) => matched),
+      ]).forEach(tile => this.onTileMatched!(tile));
+    }
   }
 
   spawnNewTiles(): void {

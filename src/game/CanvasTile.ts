@@ -105,7 +105,7 @@ export default class CanvasTile extends Tile {
       case 'verticalClear': drawDoubleArrow(ctx, 'vertical', 'white', 'white', center, arrowWidth, arrowLength); break;
       case 'crossClear': drawCrossArrow(ctx, 'white', 'white', center, arrowWidth, arrowLength); break;
       case 'typeClear': {
-        ctx.fillStyle = `#${((new Date().getTime() / 10) % MAX_COLOR_INT).toString(16)}`;
+        ctx.fillStyle = `#${(new Date().getTime() % MAX_COLOR_INT).toString(16)}`;
         ctx.fillRect(x, y, width, height);
         break;
       }
