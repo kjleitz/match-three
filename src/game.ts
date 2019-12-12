@@ -5,10 +5,48 @@ import CanvasBoard from "./game/CanvasBoard";
 const scores = {} as Record<string, number>;
 let moves = 10;
 
+export interface DrawTextOptions {
+  x: number;
+  y: number;
+  font?: string;
+  color?: string;
+  size?: number;
+  units?: string;
+  align?: CanvasTextAlign;
+  baseline?: CanvasTextBaseline;
+}
+const drawText = (
+  text: string,
+  {
+    x,
+    y,
+    font = 'Courier',
+    color = 'black',
+    size = 16,
+    units = 'px',
+    align = 'start',
+    baseline = 'top',
+  }: DrawTextOptions
+): void => {
+  ctx.fillStyle = color;
+  ctx.font = `${size}${units} "${font}"`;
+  ctx.textAlign = align;
+  ctx.textBaseline = baseline;
+  ctx.fillText(text, x, y);
+};
+
 window.addEventListener('DOMContentLoaded', () => {
-  const boardSize = Math.min(window.innerWidth, window.innerHeight, 500);
+  const maxSize = Math.min(window.innerWidth, window.innerHeight, 500);
+  const boardSize = 0.75 * maxSize;
+  const boardOffset = (maxSize - boardSize) / 2;
+  const boardBottom = maxSize - boardOffset;
+  const boardTop = boardOffset;
+  const boardLeft = boardOffset;
+  const boardRight = maxSize - boardOffset;
 
   const board = new CanvasBoard({
+    x: boardOffset,
+    y: boardOffset,
     width: boardSize,
     rowCount: 9,
     colCount: 9,
@@ -35,23 +73,28 @@ window.addEventListener('DOMContentLoaded', () => {
     board.update();
 
     const size = 24;
-    ctx.fillStyle = 'black';
-    ctx.font = `${size}px Courier`;
     if (moves <= 0) {
-      ctx.fillText('FIN', size, boardSize + 20);
-    } else {
-      ctx.fillText(`Moves left: ${moves}`, size, boardSize + 20);
+      drawText('fin', {
+        x: boardLeft + (boardSize / 2),
+        y: boardTop + (boardSize / 2),
+        size: 96,
+        align: 'center',
+        baseline: 'middle',
+      });
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 1;
+      ctx.strokeText('fin', boardLeft + (boardSize / 2), boardTop + (boardSize / 2));
     }
+
+    drawText(`Moves left: ${moves}`, { x: size, y: boardBottom + 20 });
 
     Object.keys(scores).sort().forEach((tileType, index) => {
       const x = 20;
-      const y = boardSize + 20 + ((1 + index) * 30);
+      const y = boardBottom + 20 + ((1 + index) * 30);
       const score = scores[tileType];
       ctx.fillStyle = tileType;
       ctx.fillRect(x, y, size, size);
-      ctx.fillStyle = 'black';
-      ctx.font = `${size}px Courier`;
-      ctx.fillText(`${score}/20`, x  + size + 10, y + (0.85 * size));
+      drawText(`${score > 20 ? 20 : score}/20`, { x: x + size + 10, y, size });
     });
   });
 
