@@ -1,6 +1,7 @@
 import gameLoop from "./game/gameLoop";
 import { ctx } from "./game/canvas";
 import CanvasBoard from "./game/CanvasBoard";
+import { drawHeart } from "./concerns/drawing";
 
 const scores = {} as Record<string, number>;
 let moves = 10;
@@ -44,6 +45,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const boardLeft = boardOffset;
   const boardRight = maxSize - boardOffset;
 
+  // ctx.globalCompositeOperation = 'lighter';
+  // ctx.translate(0.5, 0.5);
+
   const board = new CanvasBoard({
     x: boardOffset,
     y: boardOffset,
@@ -85,6 +89,8 @@ window.addEventListener('DOMContentLoaded', () => {
       ctx.lineWidth = 1;
       ctx.strokeText('fin', boardLeft + (boardSize / 2), boardTop + (boardSize / 2));
     }
+
+    // drawHeart(ctx, { position: { x: 575, y: 10 }, size: 100, fillStyle: 'red', strokeStyle: 'black', scale: 0.9 });
 
     drawText(`Moves left: ${moves}`, { x: size, y: boardBottom + 20 });
 

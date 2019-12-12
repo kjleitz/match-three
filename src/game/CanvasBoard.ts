@@ -352,18 +352,21 @@ export default class CanvasBoard extends Board<CanvasTile> {
 
   private defaultNewTileOfType(type: string, variant?: string): CanvasTile {
     // future: change colors for "color" types here
-    const colors = {
-      red: 'red',
-      orange: 'orange',
-      purple: 'purple',
-      green: 'green',
-      blue: 'blue',
-    };
+    const typeProps = {
+      red: { color: 'red', shape: 'heart' },
+      orange: { color: 'orange', shape: 'star' },
+      purple: { color: 'purple', shape: 'square' },
+      green: { color: 'green', shape: 'circle' },
+      blue: { color: 'blue', shape: 'triangle' },
+    } as const;
+
+    const typeProp = typeProps[type as keyof typeof typeProps];
 
     return new CanvasTile({
       type,
       variant,
-      color: colors[type as keyof typeof colors],
+      color: typeProp.color,
+      shape: typeProp.shape,
       width: this.tileWidth,
       height: this.tileHeight,
       applyNormalStyle: this.applyNormalStyle,

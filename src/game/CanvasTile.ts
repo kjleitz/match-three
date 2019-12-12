@@ -1,6 +1,7 @@
 import Tile from "../Tile";
 import { Need, CoordPosition } from "../types/common";
-import { drawDoubleArrow, drawArrow, drawCrossArrow } from "../concerns/drawing";
+import { drawDoubleArrow, drawArrow, drawCrossArrow, drawHeart, drawTriangle, drawCircle, drawStar, drawSquare } from "../concerns/drawing";
+import { range } from "../concerns/utilities";
 
 const MAX_COLOR_INT = parseInt("FFFFFF", 16);
 
@@ -8,6 +9,7 @@ export default class CanvasTile extends Tile {
   public width = 50;
   public height = 50;
   public color = 'white';
+  public shape = '' as ''|'heart'|'star'|'square'|'circle'|'triangle';
   public selected = false;
   public targeted = false;
   public matchedAt = null as Date|null;
@@ -27,6 +29,7 @@ export default class CanvasTile extends Tile {
     this.width = opts.width || this.width;
     this.height = opts.height || this.height;
     this.color = opts.color || this.color;
+    this.shape = opts.shape || this.shape;
     this.blank = opts.blank || this.blank;
     this.matchAnimationMs = opts.matchAnimationMs || this.matchAnimationMs;
     this._imgUrl = opts.imgUrl || this._imgUrl;
@@ -90,33 +93,73 @@ export default class CanvasTile extends Tile {
   private defaultApplyNormalStyle(ctx: CanvasRenderingContext2D, tile: CanvasTile, { x, y }: CoordPosition): void {
     const { width, height, image, color, variant } = tile;
 
+    const drawTileShape = (fillStyle: string, strokeStyle?: string): void => {
+      const shapeOpts = {
+        position: { x, y },
+        size: Math.min(width, height),
+        fillStyle,
+        strokeStyle,
+        scale: 0.9,
+      };
+      switch(this.shape) {
+        case 'heart': drawHeart(ctx, shapeOpts); break;
+        case 'star': drawStar(ctx, shapeOpts); break;
+        case 'square': drawSquare(ctx, { ...shapeOpts, scale: 0.8 }); break;
+        case 'circle': drawCircle(ctx, { ...shapeOpts, scale: 0.8 }); break;
+        case 'triangle': drawTriangle(ctx, shapeOpts); break;
+        default: ctx.fillStyle = color; ctx.fillRect(x, y, width, height);
+      }
+    };
+
     if (image) {
       ctx.drawImage(image, x, y);
     } else {
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y, width, height);
+      drawTileShape(color);
     }
 
     const center = { x: x + (height / 2), y: y + (width / 2) };
-    const arrowWidth = width / 8;
-    const arrowLength = 0.6 * height;
+    const arrowWidth = width / 10;
+    const arrowLength = 0.5 * width;
     switch (variant) {
-      case 'horizontalClear': drawDoubleArrow(ctx, 'horizontal', 'white', 'white', center, arrowWidth, arrowLength); break;
-      case 'verticalClear': drawDoubleArrow(ctx, 'vertical', 'white', 'white', center, arrowWidth, arrowLength); break;
-      case 'crossClear': drawCrossArrow(ctx, 'white', 'white', center, arrowWidth, arrowLength); break;
+      case 'horizontalClear': drawDoubleArrow(ctx, 'horizontal', 'white', '', center, arrowWidth, arrowLength); break;
+      case 'verticalClear': drawDoubleArrow(ctx, 'vertical', 'white', '', center, arrowWidth, arrowLength); break;
+      case 'crossClear': drawCrossArrow(ctx, 'white', '', center, arrowWidth, arrowLength); break;
       case 'typeClear': {
-        ctx.fillStyle = `#${(new Date().getTime() % MAX_COLOR_INT).toString(16)}`;
-        ctx.fillRect(x, y, width, height);
+        // ctx.fillStyle = `#${(new Date().getTime() % MAX_COLOR_INT).toString(16)}`;
+        // const millis = new Date().getTime() % 1000;
+        const randColor = `#${((new Date().getTime() * 100) % MAX_COLOR_INT).toString(16)}`;
+        // const fillStyle = `${range(randColor.length - 6, () => '0').join('')}#{randColor}`;
+        drawTileShape(randColor, color);
+        // ctx.fillRect(x, y, width, height);
         break;
       }
       case 'bombClear': {
-        ctx.fillStyle = 'black';
-        const boxWidth = width / 2;
-        const boxHeight = height / 2;
-        ctx.fillRect(x + (boxWidth / 2), y + (boxHeight / 2), boxWidth, boxHeight);
+        // ctx.fillStyle = 'black';
+        drawTileShape('black', color);
+        // const centerX = x + (width / 2);
+        // const centerY = y + (height / 2);
+        // drawCircle(ctx, { position: { x: centerX, y: centerY }, size: width / 2, fillStyle: 'black', strokeStyle: 'black' })
+        // ctx.fillRect(x + (boxWidth / 2), y + (boxHeight / 2), boxWidth, boxHeight);
         break;
       }
     }
+    // switch (variant) {
+    //   case 'horizontalClear': drawDoubleArrow(ctx, 'horizontal', 'white', 'white', center, arrowWidth, arrowLength); break;
+    //   case 'verticalClear': drawDoubleArrow(ctx, 'vertical', 'white', 'white', center, arrowWidth, arrowLength); break;
+    //   case 'crossClear': drawCrossArrow(ctx, 'white', 'white', center, arrowWidth, arrowLength); break;
+    //   case 'typeClear': {
+    //     ctx.fillStyle = `#${(new Date().getTime() % MAX_COLOR_INT).toString(16)}`;
+    //     ctx.fillRect(x, y, width, height);
+    //     break;
+    //   }
+    //   case 'bombClear': {
+    //     ctx.fillStyle = 'black';
+    //     const boxWidth = width / 2;
+    //     const boxHeight = height / 2;
+    //     ctx.fillRect(x + (boxWidth / 2), y + (boxHeight / 2), boxWidth, boxHeight);
+    //     break;
+    //   }
+    // }
   }
 
   private defaultApplySelectedStyle(ctx: CanvasRenderingContext2D, tile: CanvasTile, { x, y }: CoordPosition): void {
