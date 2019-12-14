@@ -68,8 +68,6 @@ export const rotatePoint = (coords: CoordPosition, around: CoordPosition, radian
   return { x: newX + around.x, y: newY + around.y };
 };
 
-(window as any).rotatePoint = rotatePoint;
-
 export function isNullish(value: any): value is Nullish {
   return typeof value === 'undefined' || Object.prototype.toString.call(value) === '[object Null]';
 }

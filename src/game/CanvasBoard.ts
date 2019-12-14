@@ -1,6 +1,6 @@
 import Board from "../Board";
 import CanvasTile from "./CanvasTile";
-import { range, distanceBetween, findMap, sample, tuple, uniq } from "../concerns/utilities";
+import { range, distanceBetween, findMap, tuple } from "../concerns/utilities";
 import mouse, { Mouse } from "./mouse";
 import Shape, { defaultShapes } from "../Shape";
 import { GridPosition, CoordPosition } from "../types/common";
@@ -379,11 +379,9 @@ export default class CanvasBoard extends Board<CanvasTile> {
   private variantForShape(shape: Shape, rotation: number): string {
     switch (shape.value) {
       case 2: return rotation % 2 === 0 ? 'verticalClear' : 'horizontalClear';
-      case 3: return 'typeClear';
-      case 4: return 'typeClear';
-      case 5: return 'crossClear';
-      case 6: return 'crossClear';
-      case 7: return 'bombClear';
+      case 3: return 'bombClear';
+      case 4: return 'crossClear';
+      case 5: return 'typeClear';
       default: return '';
     }
   }
@@ -535,5 +533,3 @@ export default class CanvasBoard extends Board<CanvasTile> {
     this.needsShuffle = !this.possibleMatchesExist();
   }
 }
-
-(window as any).defaultShapes = defaultShapes;

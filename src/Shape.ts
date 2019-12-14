@@ -148,10 +148,15 @@ export default class Shape {
 export const defaultShapes = (): Shape[] => [
   Shape.fromLength(3, { value: 1 }),
   Shape.fromLength(4, { value: 2 }),
-  Shape.fromLength(5, { value: 3 }),
-  Shape.fromLength(6, { value: 4, orMore: true }),
   new Shape({
-    value: 5,
+    value: 3,
+    map: [
+      [true, true],
+      [true, true],
+    ],
+  }),
+  new Shape({
+    value: 4,
     map: [
       [true, true, true],
       [true],
@@ -159,18 +164,13 @@ export const defaultShapes = (): Shape[] => [
     ],
   }),
   new Shape({
-    value: 6,
+    value: 4,
     map: [
       [true, true, true],
       [false, true],
       [false, true],
     ],
   }),
-  new Shape({
-    value: 7,
-    map: [
-      [true, true],
-      [true, true],
-    ],
-  }),
+  Shape.fromLength(5, { value: 5 }),
+  Shape.fromLength(6, { value: 5, orMore: true }),
 ];

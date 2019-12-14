@@ -1,5 +1,5 @@
 import Tile from "./Tile";
-import { range, sample, rotate, rand } from "./concerns/utilities";
+import { range, sample, rand } from "./concerns/utilities";
 import { Need } from "./types/common";
 
 export type TileGenerator<TileClass extends Tile> = (opts: Pick<TileClass, 'variant'>) => TileClass;

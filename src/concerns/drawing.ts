@@ -14,7 +14,6 @@ export const drawArrow = (
   const headLength = 0.75 * headWidth;
   const tailWidth = width;
   const tailLength = length - headLength;
-  // const tailBottom = center.y + (tailWidth / 2); // like affixing it with a nail so that it's centered semi-square with the end
   const tailBottom = center.y + (tailLength / 2) + (headLength / 2);
   const tailTop = tailBottom - tailLength;
   const tailLeft = center.x - (tailWidth / 2);
